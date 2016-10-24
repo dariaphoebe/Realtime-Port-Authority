@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import rectangledbmi.com.pittsburghrealtimetracker.model.PatApiService;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.response.Pt;
@@ -71,6 +72,7 @@ public class PatternViewModel {
                                             route.getRouteColor()));
 
                 })
+                .debounce(300, TimeUnit.MILLISECONDS)
                 .retry()
                 .share();
     }

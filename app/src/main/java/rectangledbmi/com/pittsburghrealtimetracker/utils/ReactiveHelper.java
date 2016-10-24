@@ -35,31 +35,34 @@ public class ReactiveHelper {
                 .flatMap(throwable -> {
             // theoretically, this should only resubscribe when internet is back
             if (isInternetDown(throwable)) {
-                return ReactiveNetwork
-                        .observeInternetConnectivity(
-                                new WalledInternetStrategy(),
-                                2000,
-                                2000,
-                                "http://clients3.google.com/generate_204",
-                                80,
-                                2000,
-                                null
-                        )
-                        .skipWhile(isConnected -> !isConnected)
-                        .doOnNext(isConnected -> {
-                            if (isConnected) {
-                                reconnectionMessage.call(true);
-                            }
-                            else {
-                                Timber.i("Internet is still disconnected in retryWhen.");
-                            }
-                        });
+                return createReconnectionObservable(reconnectionMessage);
             }
             // otherwise, just run normal onError
             Timber.i(throwable, "Not retrying since something should be wrong on " +
                     "Port Authority's end.");
             return Observable.error(throwable);
         });
+    }
+
+    public static Observable<Boolean> createReconnectionObservable(Action1<Boolean> reconnectionMessage) {
+        return ReactiveNetwork
+                .observeInternetConnectivity(
+                        new WalledInternetStrategy(),
+                        2000,
+                        2000,
+                        "http://clients3.google.com/generate_204",
+                        80,
+                        2000,
+                        null
+                )
+                .skipWhile(isConnected -> !isConnected)
+                .doOnNext(isConnected -> {
+                    if (isConnected) {
+                        reconnectionMessage.call(true);
+                    } else {
+                        Timber.i("Internet is still disconnected in retryWhen.");
+                    }
+                });
     }
 
 

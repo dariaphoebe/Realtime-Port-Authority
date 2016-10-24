@@ -13,6 +13,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.response.Ptr;
@@ -21,6 +22,9 @@ import rectangledbmi.com.pittsburghrealtimetracker.patterns.response.PatternResp
 import rx.Observable;
 import rx.exceptions.Exceptions;
 import timber.log.Timber;
+
+import static rectangledbmi.com.pittsburghrealtimetracker.utils.ReactiveHelper.createReconnectionObservable;
+import static rectangledbmi.com.pittsburghrealtimetracker.utils.ReactiveHelper.isInternetDown;
 
 /**
  * <p>Create a data manager for patternSelections that will handle:</p>
@@ -121,10 +125,19 @@ public class PatternDataManager {
                         }
                         return patterns;
                     } catch (IOException e) {
-                        Timber.e(e, "Could not retrieve polyline from internet when it should have.");
+                        Timber.w(e, "Could not retrieve polyline from internet when it should have.");
                         throw Exceptions.propagate(e);
                     }
 
+                })
+                .onErrorResumeNext(throwable -> {
+                    if (isInternetDown(throwable)) {
+                        Timber.i(throwable, "Internet issues when trying to get pattern of %s from internet... Retrying", rt);
+                        return createReconnectionObservable(aBoolean -> Timber.i("Re-retrieving pattern info for %s", rt))
+                                .flatMap(aBoolean -> getPatterns(rt).debounce(300, TimeUnit.MILLISECONDS));
+                    }
+                    Timber.w(throwable, "passing along an observable with an error since something unknown went wrong");
+                    return Observable.error(throwable);
                 });
     }
 
