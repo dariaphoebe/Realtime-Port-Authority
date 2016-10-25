@@ -104,9 +104,7 @@ public class NavigationDrawerFragment extends Fragment {
         }
         for (String routeNumber : routesArray) {
             Route route = busListAdapter.getRouteByNumber(routeNumber);
-            if (route.isSelected() != isSelected) {
-                toggleRoute(route, isSelected);
-            }
+            toggleRoute(route, isSelected);
         }
         Timber.d("Finished multiselecting routes");
     }

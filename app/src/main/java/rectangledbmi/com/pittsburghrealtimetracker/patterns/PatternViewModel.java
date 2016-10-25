@@ -12,21 +12,23 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import rectangledbmi.com.pittsburghrealtimetracker.model.PatApiService;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.response.Pt;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.response.Ptr;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.either.EitherStopState;
+import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.either.FullStopSelectionState;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.either.MapState;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.rendering.StopRenderRequest;
-import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.selection.StopRenderState;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.rendering.StopRequestAccumulator;
+import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.selection.StopRenderState;
 import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.selection.StopSelection;
-import rectangledbmi.com.pittsburghrealtimetracker.patterns.stops.either.FullStopSelectionState;
 import rectangledbmi.com.pittsburghrealtimetracker.selection.Route;
 import rx.Observable;
+import rx.functions.Action1;
 import timber.log.Timber;
+
+import static rectangledbmi.com.pittsburghrealtimetracker.utils.ReactiveHelper.retryIfInternet;
 
 /**
  * <p>Contains the logic of the {@link rectangledbmi.com.pittsburghrealtimetracker.patterns.polylines.PolylineView} for pre-processing the patternSelections.</p>
@@ -50,12 +52,20 @@ public class PatternViewModel {
      * @param selectionObservable the observable for bus route selection
      */
     public PatternViewModel(PatApiService service,
-                            Observable<Route> selectionObservable) {
-        patternSelections = createPatternSelection(service, selectionObservable);
+                            Observable<Route> selectionObservable,
+                            Action1<Boolean> handleReconnection
+    ) {
+        patternSelections = createPatternSelection(
+                service,
+                selectionObservable,
+                handleReconnection);
     }
 
-    private static Observable<PatternSelection> createPatternSelection(PatApiService service,
-                                                                Observable<Route> selectionObservable) {
+    private Observable<PatternSelection> createPatternSelection(
+            PatApiService service,
+            Observable<Route> selectionObservable,
+            Action1<Boolean> reconnectionMessage
+    ) {
         if (selectionObservable == null) {
             Timber.i("Selection observable is null. Returning null.");
             return null;
@@ -69,12 +79,18 @@ public class PatternViewModel {
                                             patterns,
                                             route.isSelected(),
                                             route.getRoute(),
-                                            route.getRouteColor()));
-
+                                            route.getRouteColor())
+                            );
                 })
-                .debounce(300, TimeUnit.MILLISECONDS)
-                .retry()
-                .share();
+                .share()
+                .retryWhen(throwable -> throwable
+                        .compose(retryIfInternet(disconnectionMessage(), reconnectionMessage))
+                )
+                .retry(5);
+    }
+
+    private static Action1<Throwable> disconnectionMessage() {
+        return throwable -> Timber.i(throwable, "Something wrong went wrong with handling polylines.");
     }
 
     /**

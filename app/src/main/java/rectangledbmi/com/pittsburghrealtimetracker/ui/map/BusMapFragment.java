@@ -680,7 +680,8 @@ public class BusMapFragment extends SelectionFragment implements GoogleApiClient
      */
         PatternViewModel patternViewModel = new PatternViewModel(
                 patApiService,
-                routeSelectionObservable
+                routeSelectionObservable,
+                handlePatternReconnection()
         );
         polylineSubscription = patternViewModel.getPatternSelections()
                 .observeOn(AndroidSchedulers.mainThread())
@@ -690,6 +691,25 @@ public class BusMapFragment extends SelectionFragment implements GoogleApiClient
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(stopObserver());
 
+    }
+
+    /**
+     * <p>Handles re-getting pattern info.</p>
+     * @return restoring
+     */
+    private Action1<Boolean> handlePatternReconnection() {
+        return isReconnected -> {
+            if (isReconnected) {
+                if (busListInteraction != null) {
+                    Timber.i("Restoring selection for polylines");
+                    busListInteraction.restoreSelection();
+                } else {
+                    Timber.w("Not restoring selection for polylines");
+                }
+            } else {
+                Timber.d("Internet still disconnected.");
+            }
+        };
     }
 
     /**

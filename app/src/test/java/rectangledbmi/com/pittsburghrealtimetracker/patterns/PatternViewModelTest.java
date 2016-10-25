@@ -15,7 +15,6 @@ import rx.subjects.BehaviorSubject;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.verify;
 import static rectangledbmi.com.pittsburghrealtimetracker.TestHelperMethods.noErrorsAndNotCompleted;
 import static rectangledbmi.com.pittsburghrealtimetracker.mock.PatApiMock.getPatApiServiceMock;
@@ -42,7 +41,8 @@ public class PatternViewModelTest {
 
         PatternViewModel patternViewModel = new PatternViewModel(
                 patapiMock,
-                subject.asObservable()
+                subject.asObservable(),
+                System.out::println
         );
         patternSelectionTestSubscriber = new TestSubscriber<>();
         polylinePresenterSubscription = patternViewModel
